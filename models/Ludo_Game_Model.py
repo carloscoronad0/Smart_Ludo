@@ -1,4 +1,4 @@
-import Player_Model
+from models import Player_Model
 import numpy as np
 
 # Table dimensions
@@ -55,20 +55,26 @@ class Ludo_Game:
     # GAME FUNCTIONS ---------------------------------------------------------------------------------------------------------------
 
     def roll_Dice(self):
-        self.dice = np.random.randint(1,7)
+        self.dice = np.random.randint(1,7) # Dice number from 1-6
 
     def put_Pawn_In_Table(self, player_number):
+        # Setting player id on the entry cell into the ludo table
         self.ludo_table[self.players[player_number].entry_table_cell] = self.players[player_number].player_id
         return self.players[player_number].new_Pawn_In_Table()
 
+    def can_Put_Pawn_In_Table(self, player_number):
+        # If the player can put one more pawn in Table
+        return self.players[player_number].pawns_in_base > 0
+
     def get_Pawn_State(self, player_number, pawn_number):
+        # Returns the next six cells from a pawn represented in a number
         location = self.players[player_number].pawns_in_table[pawn_number]
         last_common_cell = self.players[player_number].last_common_cell
         id = self.players[player_number].player_id
         value = 0
 
-        if location > 0:
-            if (location + 6) > last_common_cell:
+        if location >= 0: # If location is positive then the pawn is still in the common table
+            if (location + 6) > last_common_cell: # Verify if it's possible that the pawn enters the last cells
                 max_value = 7 - ((location + 6) % last_common_cell)
             else:
                 max_value = 7
@@ -76,6 +82,7 @@ class Ludo_Game:
             for i in range(1,max_value):
                 if (self.ludo_table[location + i] > 0) & (self.ludo_table[location + i] != id):
                     value += 2**(i-1)
+                    print("Value: ", value)
 
         else:
             value = 2**(6 + location)
@@ -84,18 +91,20 @@ class Ludo_Game:
 
     def advance_In_Table(self, player_number, pawn_number):
         current_location = self.players[player_number].pawns_in_table[pawn_number]
-        eaten_player = 0
+        print("\tCurrent location: ", current_location)
+        consecuence = 0
 
         if current_location > 0: # Pawn is still on common table
 
             # Verifying if the pawn has entered the last 5 cells
             if self.can_Enter_Last_Cells(self.players[player_number].last_common_cell, current_location, (current_location + self.dice)):
                 new_location = (current_location + self.dice) % self.players[player_number].last_common_cell
+                print("\tNew location: ", new_location)
 
                 # If new_location is 6 then it enters home directly
                 if new_location == 6:
                     self.players[player_number].pawn_in_home(pawn_number)
-                    eaten_player = 5
+                    consecuence = -1
                 else: # else it enters into the last cells
                     self.last_cells[player_number][new_location - 1] = self.players[player_number].player_id
                     self.players[player_number].update_Pawn_In_Table(pawn_number, new_location * (-1))
@@ -107,7 +116,7 @@ class Ludo_Game:
                 # calculated for the pawn is greater than 0, then there's another 
                 # pawn in that location
                 if self.ludo_table[new_location] > 0 & self.unavailable_eating_cells.__contains__(new_location) is not True:
-                    eaten_player = self.ludo_table[new_location]
+                    consecuence = self.ludo_table[new_location]
 
                 self.ludo_table[new_location] = self.players[player_number].player_id
                 
@@ -116,10 +125,11 @@ class Ludo_Game:
         else: # else the Pawn is in the last cells
 
             new_location = abs(current_location) + self.dice
+            print("\tNew location: ", new_location)
 
             if new_location == 6: # If new_location is 6 then the pawn has reached home
                 self.players[player_number].pawn_in_home(pawn_number)
-                eaten_player = 5
+                consecuence = -1
 
             else:
                 self.last_cells[player_number][new_location - 1] = self.players[player_number].player_id
@@ -127,7 +137,7 @@ class Ludo_Game:
 
             self.last_cells[player_number][abs(current_location + 1)] = 0 # Is plus 1 because current_location is negative
 
-        return eaten_player
+        return consecuence
 
     # Get the possible moves the player can perform with his pawns
     def get_Possible_Moves(self, player_number):
@@ -138,6 +148,7 @@ class Ludo_Game:
 
             if current_location > 0: # if it's positive then the pawn is in the common table
                 possible_location = current_location + self.dice
+                print("\tPossible location: ", possible_location)
 
                 if self.can_Enter_Last_Cells(self.players[player_number].last_common_cell, current_location, possible_location):
                     possible_moves.append((i, current_location, MOVE_PAWN))
@@ -146,14 +157,16 @@ class Ludo_Game:
                     # (Pawn number, Pawn position, Action)
                     possible_moves.append((i, possible_location, MOVE_PAWN))
 
-            else: # else the pawn is in the last cells
-                possible_location = current_location - self.dice
+            elif abs(current_location) < 6: # else the pawn is in the last cells
+                possible_location = abs(current_location - self.dice)
+                print("\tPossible location: ", possible_location)
 
                 if possible_location <= 6: # Pos 6 is home
                     # (Pawn number, Pawn position, Action)
-                    possible_moves.append(i, current_location, MOVE_PAWN)
+                    possible_moves.append((i, current_location, MOVE_PAWN))
+                    print("\t\tAppended")
 
-        if self.dice == 6 & self.players[player_number].pawns_in_base > 0:
+        if (self.dice == 6) & (self.players[player_number].pawns_in_base > 0):
             # (Pawn number, Pawn position, Action)
             possible_moves.append((-1, None, PUT_PAWN_ON_TABLE))
 
