@@ -7,7 +7,7 @@ import PIL
 PUT_PAWN_ON_TABLE = 1
 MOVE_PAWN = 2
 
-NUMBER_OF_EPISODES = 500
+NUMBER_OF_EPISODES = 1000
 MAX_NUMBER_OF_STEPS = 100
 
 LEARNING_RATE = 0.1
@@ -21,7 +21,8 @@ PUT_PAWN_ON_TABLE_REWARD = 1
 EAT_PAWN_REWARD = 2
 
 
-q_tables = ["q_table-2.pickle", "q_table-3.pickle", "q_table-4.pickle"]
+#q_tables = ["q_table-2.pickle", "q_table-3.pickle", "q_table-4.pickle"]
+q_tables = [None, None, None]
 
 class Ludo_Engine():
     def __init__(self):
@@ -105,6 +106,7 @@ class Ludo_Engine():
             print("Begining of episode ----------------------------------------------------")
             for step in range(MAX_NUMBER_OF_STEPS):
                 for i in range(number_of_players):
+                    print(f"\nPlayer turn: {i + 1} index: {i}-----------------------------------------------\n")
                     possible_moves_substracted = []
                     exploration_rate_th = np.random.uniform(0,1)
 
@@ -117,7 +119,7 @@ class Ludo_Engine():
                     if len(possible_moves) > 2 :
                         possible_moves_substracted = possible_moves.copy()
                     
-                        if (self.ludo_game.dice == 6) & self.ludo_game.can_Put_Pawn_In_Table(i):
+                        if self.ludo_game.can_Put_Pawn_In_Table(i):
                             number_of_pawn_moves = len(possible_moves) - 1
                             possible_moves_substracted.remove((-1, None, PUT_PAWN_ON_TABLE))
                         else:
@@ -126,7 +128,7 @@ class Ludo_Engine():
                         state = self.adapt_State(number_of_pawn_moves, i, possible_moves_substracted)
 
                         if (number_of_pawn_moves > 1) & (exploration_rate_th > self.exploration_rate):
-                            decision = self.smart_agent.get_Action(state, number_of_pawn_moves, (self.ludo_game.dice == 6) & self.ludo_game.can_Put_Pawn_In_Table(i))
+                            decision = self.smart_agent.get_Action(state, number_of_pawn_moves, self.ludo_game.can_Put_Pawn_In_Table(i))
 
                         else:
                             decision = np.random.randint(0, len(possible_moves))
@@ -137,18 +139,15 @@ class Ludo_Engine():
                             new_pawn_id = self.ludo_game.put_Pawn_In_Table(i)
                             possible_moves_substracted.append((new_pawn_id, _, _))
 
-                            print("Moves: ", possible_moves_substracted)
-
-                            print("Pawns: ", number_of_pawn_moves)
-                            print("State: ", state)
+                            print("Put pawn in table")
                             self.smart_agent.update_Q_Table(number_of_pawn_moves, state, decision, PUT_PAWN_ON_TABLE_REWARD, LEARNING_RATE, 
                                 DISCOUNT_RATE, self.adapt_State(number_of_pawn_moves + 1, i, possible_moves_substracted), number_of_pawn_moves + 1)
 
                             rewards_of_the_episode += PUT_PAWN_ON_TABLE_REWARD
 
                         else:
-                            consecuence = self.ludo_game.advance_In_Table(i, p_id)
-                            print("Moves: ", possible_moves_substracted)
+                            consecuence, consecuence_loc = self.ludo_game.advance_In_Table(i, p_id)
+                            print(f"Moving pawn, consecuence {consecuence} loc {consecuence_loc}")
 
                             if consecuence < 0:
                                 reward = EAT_PAWN_REWARD
@@ -158,6 +157,7 @@ class Ludo_Engine():
                             else:
                                 if consecuence > 0:
                                     reward = EAT_PAWN_REWARD
+                                    self.ludo_game.pawn_Has_Been_Eaten(int(consecuence - 1), consecuence_loc)
                                 else:
                                     reward = 0
 
@@ -188,6 +188,6 @@ class Ludo_Engine():
             rewards_of_the_training.append(rewards_of_the_episode)
 
         print("Training finished")
-        #self.plot_Rewards_On_Games(rewards_of_the_training, NUMBER_OF_EPISODES)
+        self.plot_Rewards_On_Games(rewards_of_the_training, NUMBER_OF_EPISODES)
         self.smart_agent.save_Q_Tables()
         self.smart_agent.save_Rewards_Log(rewards_of_the_training)
