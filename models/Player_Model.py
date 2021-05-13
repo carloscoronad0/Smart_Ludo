@@ -19,8 +19,17 @@ class Player:
         return len(self.pawns_in_table) - 1
 
     def update_Pawn_In_Table(self, pawn_number, location):
+        print("Pawns in table before: ", self.pawns_in_table)
         self.pawns_in_table[pawn_number] = location
+        print("Pawns in table after: ", self.pawns_in_table)
 
     def pawn_in_home(self, pawn_number):
         self.pawns_in_home += 1
         self.pawns_in_table[pawn_number] = -6
+
+    def pawn_Eaten(self, loc):
+        print("Pawn eaten---------")
+        print("Pawns in table before: ", self.pawns_in_table)
+        self.pawns_in_table.remove(loc)
+        print("Pawns in table after: ", self.pawns_in_table)
+        self.pawns_in_base += 1
